@@ -426,8 +426,18 @@ options: {
 ```
 
 Each email is tagged with its template name. A useSend dashboard template can't be rendered locally, so it arrives
-as text with the template id and variables. Keep Mailpit bound to localhost: it accepts email from anyone who can
-reach it.
+as text with the template id and variables.
+
+Keep a local Mailpit bound to localhost, because it accepts email from anyone who can reach it. To use a Mailpit on a
+server, for example for staging, protect it with logins: `MP_UI_AUTH_FILE` for the inbox, and `MP_SEND_API_AUTH` for
+a login that can only send. Then put the send login in the URL:
+
+```env
+MAILPIT_URL=https://sender:s3cret%24pass@mailpit.example.com
+```
+
+The plugin sends it as a Basic auth header, and the admin page shows the URL without it. Percent-encode special
+characters in the login: Medusa's `loadEnv` expands `$`, so write `$` as `%24`.
 
 ## Delivery webhooks
 

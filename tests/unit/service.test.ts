@@ -474,3 +474,30 @@ describe('mailpit', () => {
     })
   })
 })
+
+describe('mailpit with a login', () => {
+  it('sends the credentials as Basic auth and hides them from the status', async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = []
+    const fetchMock = mock.method(
+      globalThis,
+      'fetch',
+      async (url: string, init: { headers: Record<string, string> }) => {
+        calls.push({ url, headers: init.headers })
+
+        return new Response(JSON.stringify({ ID: 'msg_2' }), { status: 200 })
+      },
+    )
+    const { service } = createService({ mailpitUrl: 'https://sender:pa$$word@mailpit.example.com/' })
+    const template = addTemplate(service)
+
+    try {
+      await service.send({ to: 'ana@example.com', channel: 'email', template })
+
+      assert.equal(calls[0]?.url, 'https://mailpit.example.com/api/v1/send')
+      assert.equal(calls[0]?.headers.Authorization, `Basic ${Buffer.from('sender:pa$$word').toString('base64')}`)
+      assert.equal(service.getStatus().mailpitUrl, 'https://mailpit.example.com')
+    } finally {
+      fetchMock.mock.restore()
+    }
+  })
+})

@@ -1,6 +1,6 @@
 {
   "name": "@rokmohar/medusa-plugin-usesend",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "useSend email notification provider for Medusa 2, with React email templates, attachments, retries and rate limiting",
   "author": "Rok Mohar",
   "license": "MIT",

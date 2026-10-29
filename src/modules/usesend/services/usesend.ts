@@ -99,6 +99,24 @@ const toAddressList = (value: string | string[] | undefined): string[] => (value
 
 const mailpitResponseSchema = z.object({ ID: z.string() })
 
+/**
+ * Splits a Mailpit URL like `https://user:pass@mailpit.example.com` into its send endpoint and a Basic auth header,
+ * because `fetch` rejects URLs with credentials.
+ */
+const toMailpitEndpoint = (mailpitUrl: string) => {
+  const url = new URL(mailpitUrl)
+  const authorization = url.username
+    ? `Basic ${Buffer.from(`${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`).toString('base64')}`
+    : undefined
+
+  url.username = ''
+  url.password = ''
+
+  const baseUrl = url.toString().replace(/\/+$/, '')
+
+  return { baseUrl, endpoint: `${baseUrl}/api/v1/send`, authorization }
+}
+
 const recipientsSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)])
 
 /**
@@ -241,7 +259,7 @@ export class UseSendService implements INotificationProvider {
       dryRun: this.options.dryRun ?? false,
       redirectTo: this.options.redirectTo ?? null,
       defaultLocale: this.options.defaultLocale ?? null,
-      mailpitUrl: this.options.mailpitUrl ?? null,
+      mailpitUrl: this.options.mailpitUrl ? toMailpitEndpoint(this.options.mailpitUrl).baseUrl : null,
       webhooks: !!this.options.webhook_secret,
       contactBookId: this.options.contacts?.contactBookId ?? null,
     }
@@ -384,9 +402,10 @@ export class UseSendService implements INotificationProvider {
     template: string,
   ): Promise<ProviderSendNotificationResultsDTO> {
     const { templateId, variables } = payload
-    const response = await fetch(`${mailpitUrl.replace(/\/+$/, '')}/api/v1/send`, {
+    const { endpoint, authorization } = toMailpitEndpoint(mailpitUrl)
+    const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(authorization ? { Authorization: authorization } : {}) },
       body: JSON.stringify({
         From: parseAddress(payload.from),
         To: toAddressList(payload.to).map(parseAddress),

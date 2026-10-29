@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-10-29
+
+### Fixed
+
+- A login in `mailpitUrl`, e.g. `https://user:pass@mailpit.example.com`, is sent as Basic auth, so a protected Mailpit
+  on a server works. The admin page shows the URL without the login.
+
 ## [2.2.0] - 2026-10-29
 
 ### Added
@@ -81,7 +88,8 @@ Versions up to 1.1.2 were published as
 [`@rokmohar/medusa-plugin-unsend`](https://www.npmjs.com/package/@rokmohar/medusa-plugin-unsend). Their notes are in
 the [GitHub releases](https://github.com/rokmohar/medusa-plugin-usesend/releases).
 
-[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v1.1.2...v2.0.0
