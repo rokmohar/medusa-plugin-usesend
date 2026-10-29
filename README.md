@@ -16,6 +16,10 @@ called Unsend. Write your emails as React components, and the plugin renders and
 - [Email templates](#email-templates)
 - [Sending emails](#sending-emails)
 - [Attachments](#attachments)
+- [Testing without sending](#testing-without-sending)
+- [Delivery webhooks](#delivery-webhooks)
+- [Contacts](#contacts)
+- [Admin page](#admin-page)
 - [Migrating from @rokmohar/medusa-plugin-unsend](#migrating-from-rokmoharmedusa-plugin-unsend)
 - [Self-hosting useSend](#self-hosting-usesend)
 - [Changelog](#changelog)
@@ -26,11 +30,18 @@ called Unsend. Write your emails as React components, and the plugin renders and
 ## Features
 
 - **Notification provider** for Medusa's notification module, on the `email` channel.
-- **React email templates**, loaded from a folder and rendered to HTML with your app's own React.
+- **React email templates**, loaded from a folder and rendered to HTML and plain text with your app's own React.
+- **Translated templates**: `OrderPlaced.sl.tsx` is picked for Slovenian customers.
+- **useSend dashboard templates**, sent by id with variables.
+- **Per-email options**: reply-to, CC, BCC, headers and scheduled sending.
 - **Attachments** from Medusa's `createNotifications` call.
-- **Retries** with exponential or linear backoff, so a short outage doesn't lose an email.
-- **Rate limiting** per minute.
-- **Per-environment overrides** of any option, keyed by `NODE_ENV`.
+- **Safe retries**: temporary failures are retried with backoff, and an idempotency key keeps a retry from sending
+  the email twice.
+- **Dry run and redirect modes** for development and staging.
+- **Delivery webhooks**: bounces, complaints, opens and clicks become Medusa events.
+- **Contacts**: add newsletter subscribers to a useSend contact book.
+- **Admin page** to preview templates and send yourself a test.
+- **Rate limiting** per minute, and **per-environment overrides** of any option.
 - Works with useSend Cloud and self-hosted useSend.
 
 ## Compatibility
@@ -125,17 +136,22 @@ import { USESEND_PROVIDER_PATH } from '@rokmohar/medusa-plugin-usesend'
 
 ## Configuration
 
-| Option                   | Type     | Default                      | Description                                                           |
-| ------------------------ | -------- | ---------------------------- | --------------------------------------------------------------------- |
-| `api_key`                | `string` | required                     | useSend API key.                                                      |
-| `from`                   | `string` | required                     | Default sender, e.g. `Shop <no-reply@example.com>`.                   |
-| `url`                    | `string` | `https://app.usesend.com`    | API URL. Set it to your instance's URL when you self-host useSend.    |
-| `templateDir`            | `string` | `<cwd>/src/templates/emails` | Folder the email templates are loaded from.                           |
-| `retry.maxAttempts`      | `number` | `3`                          | Attempts per email, including the first one.                          |
-| `retry.delay`            | `number` | `1000`                       | Delay before the first retry in ms.                                   |
-| `retry.backoff`          | `string` | `'exponential'`              | `'exponential'` doubles the delay on every retry, `'linear'` adds it. |
-| `rateLimit.maxPerMinute` | `number` | `60`                         | Maximum emails sent per minute. Further emails wait.                  |
-| `environment`            | `object` | none                         | Overrides of any option above per `NODE_ENV`, see below.              |
+| Option                   | Type      | Default                      | Description                                                           |
+| ------------------------ | --------- | ---------------------------- | --------------------------------------------------------------------- |
+| `api_key`                | `string`  | required                     | useSend API key.                                                      |
+| `from`                   | `string`  | required                     | Default sender, e.g. `Shop <no-reply@example.com>`.                   |
+| `url`                    | `string`  | `https://app.usesend.com`    | API URL. Set it to your instance's URL when you self-host useSend.    |
+| `templateDir`            | `string`  | `<cwd>/src/templates/emails` | Folder the email templates are loaded from.                           |
+| `retry.maxAttempts`      | `number`  | `3`                          | Attempts per email, including the first one.                          |
+| `retry.delay`            | `number`  | `1000`                       | Delay before the first retry in ms.                                   |
+| `retry.backoff`          | `string`  | `'exponential'`              | `'exponential'` doubles the delay on every retry, `'linear'` adds it. |
+| `rateLimit.maxPerMinute` | `number`  | `60`                         | Maximum emails sent per minute. Further emails wait.                  |
+| `defaultLocale`          | `string`  | none                         | Locale used when a notification has none, see [Locales](#locales).    |
+| `dryRun`                 | `boolean` | `false`                      | Log emails instead of sending them.                                   |
+| `redirectTo`             | `string`  | none                         | Send every email to this address instead.                             |
+| `webhook_secret`         | `string`  | none                         | Signing secret that turns on [delivery webhooks](#delivery-webhooks). |
+| `contacts.contactBookId` | `string`  | none                         | Default contact book for [contacts](#contacts).                       |
+| `environment`            | `object`  | none                         | Overrides of any option above per `NODE_ENV`, see below.              |
 
 The options are validated at startup, and an invalid configuration stops the server with a message listing every
 problem.
@@ -217,6 +233,33 @@ A JSON file with the same name next to the template is optional:
 }
 ```
 
+### Locales
+
+Add a locale to the file name for a translated variant: `OrderPlaced.sl.tsx` is the Slovenian `order-placed`, and
+`OrderPlaced.sl.json` holds its metadata, on top of `OrderPlaced.json`.
+
+The locale is read from `provider_data.locale`, or else `data.locale`, of the notification. The plugin uses the first
+variant that exists:
+
+1. The exact locale, e.g. `sl-si`
+2. Its language, e.g. `sl`
+3. The `defaultLocale` option
+4. The template without a locale
+
+### Preview data
+
+The [admin page](#admin-page) fills a template with sample data. Set it as a static `PreviewProps` on the component,
+the same as [React Email](https://react.email) does, or as `previewProps` in the metadata file:
+
+```tsx
+OrderPlaced.PreviewProps = {
+  display_id: 1001,
+  customer_name: 'Ana',
+}
+```
+
+A broken template doesn't keep the others from loading: the plugin logs which file failed and why.
+
 ## Sending emails
 
 Send an email through Medusa's notification module, with the template name and the data for its props:
@@ -254,6 +297,52 @@ export const config: SubscriberConfig = {
 }
 ```
 
+Every email has an HTML and a plain-text part. The `content` of the notification overrides the template: `content.html`
+and `content.text` replace what the template renders, and an email with `content.subject` and `content.html` needs no
+template at all.
+
+### Per-email options
+
+Pass options for one email in `provider_data`:
+
+```ts
+await notificationModuleService.createNotifications({
+  to: order.email,
+  channel: 'email',
+  template: 'order-placed',
+  data: { display_id: order.display_id },
+  provider_data: {
+    replyTo: 'support@example.com',
+    bcc: 'orders@example.com',
+    headers: { 'X-Entity-Ref-ID': order.id },
+    scheduledAt: '2026-11-01T09:00:00Z',
+    locale: 'sl',
+  },
+})
+```
+
+`replyTo`, `cc` and `bcc` take an address or a list of addresses. Invalid `provider_data` fails the notification
+without sending it.
+
+### useSend dashboard templates
+
+To send a template you edit in the useSend dashboard instead of a file, pass its id and variables. Nothing is rendered
+locally, and the subject comes from the useSend template unless `content.subject` is set:
+
+```ts
+await notificationModuleService.createNotifications({
+  to: customer.email,
+  channel: 'email',
+  template: 'welcome',
+  provider_data: {
+    templateId: 'tmpl_123',
+    variables: { firstName: customer.first_name },
+  },
+})
+```
+
+### The `usesend` service
+
 The plugin's service is registered in the container as `usesend`. Use it to register templates in code instead of
 files, or to check that a template exists:
 
@@ -289,6 +378,83 @@ await notificationModuleService.createNotifications({
 
 useSend only accepts `filename` and `content`, so other fields of Medusa's attachment (`content_type`, `disposition`,
 `id`) are ignored. Attachments in `data.attachments` are still read, for older code.
+
+## Testing without sending
+
+Two options keep test emails away from real customers. Both can be set per environment:
+
+- `dryRun: true` logs each email (recipient, subject and template) instead of sending it.
+- `redirectTo: 'dev@example.com'` sends every email to one address. The original recipients go into an
+  `X-Original-To` header, and CC and BCC are dropped.
+
+```ts
+options: {
+  api_key: process.env.USESEND_API_KEY ?? '',
+  from: 'Shop <no-reply@example.com>',
+  environment: {
+    development: { dryRun: true },
+    staging: { redirectTo: 'qa@example.com' },
+  },
+}
+```
+
+## Delivery webhooks
+
+The plugin turns useSend webhook calls into Medusa events, so you can react to bounces, complaints, opens and clicks.
+
+1. In the useSend dashboard, add a webhook pointing at `https://<your-medusa>/hooks/usesend` and copy its signing
+   secret.
+2. Set the `webhook_secret` option to it. Without it, the route responds 404.
+
+Every call is verified and emitted as `usesend.<type>`, e.g. `usesend.email.bounced`. The event names are exported as
+`USESEND_WEBHOOK_EVENTS`:
+
+```ts
+// src/subscribers/email-bounced.ts
+import type { SubscriberArgs, SubscriberConfig } from '@medusajs/framework'
+import { USESEND_WEBHOOK_EVENTS, type UseSendWebhookEventData } from '@rokmohar/medusa-plugin-usesend'
+
+export default async function emailBounced({ event, container }: SubscriberArgs<UseSendWebhookEventData>) {
+  const { notification_id, to, data } = event.data
+
+  container.resolve('logger').warn(`Email ${notification_id} to ${to.join(', ')} bounced: ${JSON.stringify(data)}`)
+}
+
+export const config: SubscriberConfig = {
+  event: USESEND_WEBHOOK_EVENTS.EMAIL_BOUNCED,
+}
+```
+
+The event data holds `call_id`, `type`, `email_id`, `notification_id` (the Medusa notification that sent the email,
+when there is one), `to`, `status` and the raw useSend `data`. useSend can deliver a call more than once, so use
+`call_id` to skip duplicates.
+
+## Contacts
+
+Add the people who sign up for your newsletter to a useSend contact book, so you can send them campaigns from useSend.
+The plugin doesn't sync customers on its own, because Medusa has no newsletter consent; call it from your own sign-up
+flow:
+
+```ts
+const usesend = container.resolve<UseSendService>('usesend')
+
+await usesend.upsertContact({
+  email: 'ana@example.com',
+  firstName: 'Ana',
+  subscribed: true,
+  properties: { locale: 'sl' },
+})
+```
+
+`upsertContact` creates the contact, or updates the one with the same email, in the contact book of the
+`contacts.contactBookId` option, or the one passed as the second argument. `removeContact(contactId)` removes one.
+
+## Admin page
+
+**Settings → useSend** in the Medusa admin lists the loaded templates and shows whether the plugin is live, in dry run
+or redirecting. For each template you can edit the sample data, pick a locale, preview the HTML and plain text, and
+send a test to yourself. Test emails go through the notification module, so they show up in the notification log and
+follow `dryRun` and `redirectTo`.
 
 ## Migrating from @rokmohar/medusa-plugin-unsend
 

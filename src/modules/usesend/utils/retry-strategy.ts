@@ -4,6 +4,10 @@ export interface RetryOptions {
   maxAttempts: number
   delay: number
   backoff?: 'linear' | 'exponential'
+  /**
+   * Decides whether a failed attempt is worth repeating. Every error is retried by default.
+   */
+  isRetryable?: (error: Error) => boolean
 }
 
 export class RetryStrategy {
@@ -14,6 +18,7 @@ export class RetryStrategy {
       maxAttempts: options.maxAttempts,
       delay: options.delay,
       backoff: options.backoff || 'linear',
+      isRetryable: options.isRetryable,
     }
   }
 
@@ -25,6 +30,11 @@ export class RetryStrategy {
         return await operation()
       } catch (error) {
         lastError = toError(error)
+
+        if (this.options.isRetryable && !this.options.isRetryable(lastError)) {
+          break
+        }
+
         if (attempt < this.options.maxAttempts) {
           const waitTime = this.calculateWaitTime(attempt)
           await new Promise((resolve) => setTimeout(resolve, waitTime))

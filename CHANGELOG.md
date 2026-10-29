@@ -6,6 +6,35 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-29
+
+### Added
+
+- Translated templates: `OrderPlaced.sl.tsx` is used for notifications with the `sl` locale, from `provider_data.locale`
+  or `data.locale`, with the new `defaultLocale` option as the fallback.
+- Per-email options in `provider_data`: `replyTo`, `cc`, `bcc`, `headers` and `scheduledAt`.
+- useSend dashboard templates, sent with `provider_data.templateId` and `variables`.
+- `dryRun` and `redirectTo` options, to log emails or send them all to one address.
+- Delivery webhooks: with the `webhook_secret` option, `/hooks/usesend` verifies useSend's calls and emits them as
+  `usesend.<type>` events, e.g. `usesend.email.bounced`, with the matching notification id.
+- `upsertContact` and `removeContact` on the `usesend` service, with the `contacts.contactBookId` option.
+- Settings → useSend admin page to preview templates and send a test.
+- A plain-text part in every email.
+- Unit tests, run in CI.
+
+### Changed
+
+- The notification's `content.html` and `content.text` override what the template renders, and an email with
+  `content.subject` and `content.html` no longer needs a template. Before, they were ignored.
+- Only network errors, server errors and rate limiting are retried. Errors such as an invalid recipient fail at once.
+
+### Fixed
+
+- A retry after a lost response no longer sends the email twice: the notification id is sent as idempotency key.
+- One template that fails to load no longer stops the templates after it from loading. The log names the file.
+- Template warnings go through Medusa's logger instead of the console.
+- The admin extensions are exported, so Medusa finds them.
+
 ## [2.0.0] - 2026-10-29
 
 Unsend was renamed to useSend, and the plugin is now published as `@rokmohar/medusa-plugin-usesend`. See
@@ -40,5 +69,6 @@ Versions up to 1.1.2 were published as
 [`@rokmohar/medusa-plugin-unsend`](https://www.npmjs.com/package/@rokmohar/medusa-plugin-unsend). Their notes are in
 the [GitHub releases](https://github.com/rokmohar/medusa-plugin-usesend/releases).
 
-[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v1.1.2...v2.0.0

@@ -86,6 +86,49 @@ export interface UseSendEmailOptions {
    * Environment-specific configuration overrides
    */
   environment?: EnvironmentConfig
+
+  /**
+   * Log emails instead of sending them
+   * @default false
+   */
+  dryRun?: boolean
+
+  /**
+   * Send every email to this address instead of its recipients
+   * @example 'dev@example.com'
+   */
+  redirectTo?: string
+
+  /**
+   * Locale used when a notification has none, or when no template exists for its locale
+   * @example 'en'
+   */
+  defaultLocale?: string
+
+  /**
+   * Signing secret of the useSend webhook that posts to `/hooks/usesend`
+   */
+  webhook_secret?: string
+
+  /**
+   * Contact book defaults
+   */
+  contacts?: ContactsConfig
+}
+
+export interface ContactsConfig {
+  /**
+   * Contact book used when a contact method gets no contact book id
+   */
+  contactBookId?: string
+}
+
+export interface UseSendContact {
+  email: string
+  firstName?: string
+  lastName?: string
+  subscribed?: boolean
+  properties?: Record<string, string>
 }
 
 export interface TemplateMetadata {
@@ -141,6 +184,11 @@ export interface UseSendEmailTemplate {
   metadata?: TemplateMetadata
 
   /**
+   * Sample data for previews, from the component's `PreviewProps` or the metadata file's `previewProps`
+   */
+  previewProps?: Record<string, unknown>
+
+  /**
    * Template content
    */
   content: {
@@ -151,8 +199,7 @@ export interface UseSendEmailTemplate {
     react?: (...props: any[]) => ReactElement
 
     /**
-     * HTML content for template
-     * Can include template variables using {{variableName}} syntax
+     * HTML content for template, sent as is
      */
     html?: string
   }

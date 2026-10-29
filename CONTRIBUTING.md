@@ -27,12 +27,13 @@ yarn install
 | ---------------- | ------------------------------------------------ |
 | `yarn build`     | Builds the plugin into `.medusa/server`          |
 | `yarn dev`       | Rebuilds on change and republishes to local apps |
-| `yarn lint`      | Lints `src` with ESLint                          |
-| `yarn typecheck` | Type-checks the plugin                           |
+| `yarn test`      | Runs the unit tests in `tests/unit`              |
+| `yarn lint`      | Lints `src` and `tests` with ESLint              |
+| `yarn typecheck` | Type-checks the server and admin code            |
 | `yarn format`    | Checks formatting with Prettier                  |
 
-CI runs `format`, `lint`, `typecheck` and `build` on pushes to and pull requests against `main`; run them before you
-open one. `yarn format:fix` and `yarn lint:fix` fix most findings.
+CI runs `format`, `lint`, `typecheck`, `test` and `build` on pushes to and pull requests against `main`; run them
+before you open one. `yarn format:fix` and `yarn lint:fix` fix most findings.
 
 ## Trying changes in a Medusa app
 
@@ -55,7 +56,7 @@ To send real emails while testing, use a useSend API key for a test domain, or a
 ## Pull requests
 
 1. Fork the repository and branch off `main`.
-2. Keep each pull request to one change.
+2. Keep each pull request to one change, and add or update tests in `tests/unit` for behaviour changes.
 3. Update the [README](./README.md) when you change something users see, and add an entry under the unreleased
    version in [CHANGELOG.md](./CHANGELOG.md).
 4. Write commit messages in the [Conventional Commits](https://www.conventionalcommits.org/) style: `feat:`, `fix:`,

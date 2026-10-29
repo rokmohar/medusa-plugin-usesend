@@ -1690,6 +1690,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@medusajs/admin-sdk@npm:~2.22.1":
+  version: 2.22.1
+  resolution: "@medusajs/admin-sdk@npm:2.22.1"
+  dependencies:
+    "@medusajs/admin-shared": "npm:2.22.1"
+    zod: "npm:4.2.0"
+  checksum: 10c0/8847150ed8aec191c0952fe1c373aee8a7456f1a37e429bd081bbed440b7e6a250ce68bd70435bcdb197e12f98f411a855f73b4035dbcace7eb39e41616bd1b1
+  languageName: node
+  linkType: hard
+
 "@medusajs/admin-shared@npm:2.22.1":
   version: 2.22.1
   resolution: "@medusajs/admin-shared@npm:2.22.1"
@@ -2191,7 +2201,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@medusajs/js-sdk@npm:2.22.1":
+"@medusajs/js-sdk@npm:2.22.1, @medusajs/js-sdk@npm:~2.22.1":
   version: 2.22.1
   resolution: "@medusajs/js-sdk@npm:2.22.1"
   dependencies:
@@ -2576,7 +2586,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@medusajs/ui@npm:4.2.8":
+"@medusajs/ui@npm:4.2.8, @medusajs/ui@npm:^4.2.8":
   version: 4.2.8
   resolution: "@medusajs/ui@npm:4.2.8"
   dependencies:
@@ -5004,11 +5014,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@rokmohar/medusa-plugin-usesend@workspace:."
   dependencies:
+    "@medusajs/admin-sdk": "npm:~2.22.1"
     "@medusajs/cli": "npm:~2.22.1"
     "@medusajs/framework": "npm:~2.22.1"
+    "@medusajs/js-sdk": "npm:~2.22.1"
     "@medusajs/medusa": "npm:~2.22.1"
+    "@medusajs/ui": "npm:^4.2.8"
     "@react-email/render": "npm:^2.2.0"
     "@swc/core": "npm:^1.16.20"
+    "@tanstack/react-query": "npm:5.64.2"
     "@types/node": "npm:^22.20.5"
     "@types/react": "npm:^18.3.31"
     eslint: "npm:^10.13.0"
@@ -5023,11 +5037,17 @@ __metadata:
     typescript-eslint: "npm:^8.72.1"
     usesend-js: "npm:1.6.3"
     yalc: "npm:^1.0.0-pre.53"
+    zod: "npm:4.2.0"
   peerDependencies:
+    "@medusajs/admin-sdk": ^2.22.0
     "@medusajs/framework": ^2.22.0
+    "@medusajs/js-sdk": ^2.22.0
     "@medusajs/medusa": ^2.22.0
+    "@medusajs/ui": ^4.2.6
+    "@tanstack/react-query": 5.64.2
     react: ^18.3.1
     react-dom: ^18.3.1
+    zod: ^4.2.0
   languageName: unknown
   linkType: soft
 

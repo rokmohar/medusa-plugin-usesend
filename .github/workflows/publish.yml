@@ -56,6 +56,9 @@ jobs:
       - name: Typecheck
         run: yarn typecheck
 
+      - name: Test
+        run: yarn test
+
       - name: Read package identity
         id: pkg
         run: |

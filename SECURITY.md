@@ -18,7 +18,8 @@ Report them privately through GitHub's
 Include:
 
 - The affected plugin and Medusa versions
-- A description of the issue and its impact, such as leaking the API key, or sending email to unintended recipients
+- A description of the issue and its impact, such as leaking the API key, sending email to unintended recipients,
+  or accepting forged webhook calls
 - Steps to reproduce it, or a proof of concept
 
 You can expect an acknowledgement within a few days. Once the issue is confirmed, a fix is prepared in a private

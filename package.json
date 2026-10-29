@@ -1,6 +1,6 @@
 {
   "name": "@rokmohar/medusa-plugin-usesend",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "useSend email notification provider for Medusa 2, with React email templates, attachments, retries and rate limiting",
   "author": "Rok Mohar",
   "license": "MIT",
@@ -35,6 +35,11 @@
       "default": "./.medusa/server/src/index.js"
     },
     "./package.json": "./package.json",
+    "./admin": {
+      "import": "./.medusa/server/src/admin/index.mjs",
+      "require": "./.medusa/server/src/admin/index.js",
+      "default": "./.medusa/server/src/admin/index.js"
+    },
     "./.medusa/server/src/modules/*": "./.medusa/server/src/modules/*/index.js",
     "./.medusa/server/src/providers/*": "./.medusa/server/src/providers/*/index.js",
     "./modules/*": "./.medusa/server/src/modules/*/index.js",
@@ -45,9 +50,12 @@
     "build": "medusa plugin:build",
     "dev": "medusa plugin:develop",
     "prepublishOnly": "medusa plugin:build",
-    "lint": "eslint --ext .js,.ts src --cache --cache-strategy content",
-    "lint:fix": "eslint --ext .js,.ts src --fix --cache --cache-strategy content",
-    "typecheck": "tsc --noEmit --pretty --project tsconfig.json",
+    "typecheck": "yarn typecheck:server && yarn typecheck:admin",
+    "typecheck:server": "tsc --noEmit --pretty --project tsconfig.json",
+    "typecheck:admin": "tsc --noEmit --pretty --project src/admin/tsconfig.json",
+    "test": "node --require ts-node/register --test \"tests/unit/*.test.ts\"",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.ts\" --cache --cache-strategy content",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.ts\" --fix --cache --cache-strategy content",
     "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" --cache --cache-strategy content --log-level warn",
     "format:fix": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --cache --cache-strategy content --log-level warn"
   },
@@ -56,10 +64,14 @@
     "usesend-js": "1.6.3"
   },
   "devDependencies": {
+    "@medusajs/admin-sdk": "~2.22.1",
     "@medusajs/cli": "~2.22.1",
     "@medusajs/framework": "~2.22.1",
+    "@medusajs/js-sdk": "~2.22.1",
     "@medusajs/medusa": "~2.22.1",
+    "@medusajs/ui": "^4.2.8",
     "@swc/core": "^1.16.20",
+    "@tanstack/react-query": "5.64.2",
     "@types/node": "^22.20.5",
     "@types/react": "^18.3.31",
     "eslint": "^10.13.0",
@@ -72,13 +84,19 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.1",
-    "yalc": "^1.0.0-pre.53"
+    "yalc": "^1.0.0-pre.53",
+    "zod": "4.2.0"
   },
   "peerDependencies": {
+    "@medusajs/admin-sdk": "^2.22.0",
     "@medusajs/framework": "^2.22.0",
+    "@medusajs/js-sdk": "^2.22.0",
     "@medusajs/medusa": "^2.22.0",
+    "@medusajs/ui": "^4.2.6",
+    "@tanstack/react-query": "5.64.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^4.2.0"
   },
   "engines": {
     "node": ">=22.22"
