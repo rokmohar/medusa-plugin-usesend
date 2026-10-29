@@ -37,7 +37,7 @@ called Unsend. Write your emails as React components, and the plugin renders and
 - **Attachments** from Medusa's `createNotifications` call.
 - **Safe retries**: temporary failures are retried with backoff, and an idempotency key keeps a retry from sending
   the email twice.
-- **Dry run and redirect modes** for development and staging.
+- **Mailpit, dry run and redirect modes** for development and staging.
 - **Delivery webhooks**: bounces, complaints, opens and clicks become Medusa events.
 - **Contacts**: add newsletter subscribers to a useSend contact book.
 - **Admin page** to preview templates and send yourself a test.
@@ -138,7 +138,7 @@ import { USESEND_PROVIDER_PATH } from '@rokmohar/medusa-plugin-usesend'
 
 | Option                   | Type      | Default                      | Description                                                           |
 | ------------------------ | --------- | ---------------------------- | --------------------------------------------------------------------- |
-| `api_key`                | `string`  | required                     | useSend API key.                                                      |
+| `api_key`                | `string`  | required                     | useSend API key. Not needed with `mailpitUrl` or `dryRun`.            |
 | `from`                   | `string`  | required                     | Default sender, e.g. `Shop <no-reply@example.com>`.                   |
 | `url`                    | `string`  | `https://app.usesend.com`    | API URL. Set it to your instance's URL when you self-host useSend.    |
 | `templateDir`            | `string`  | `<cwd>/src/templates/emails` | Folder the email templates are loaded from.                           |
@@ -148,6 +148,7 @@ import { USESEND_PROVIDER_PATH } from '@rokmohar/medusa-plugin-usesend'
 | `rateLimit.maxPerMinute` | `number`  | `60`                         | Maximum emails sent per minute. Further emails wait.                  |
 | `defaultLocale`          | `string`  | none                         | Locale used when a notification has none, see [Locales](#locales).    |
 | `dryRun`                 | `boolean` | `false`                      | Log emails instead of sending them.                                   |
+| `mailpitUrl`             | `string`  | none                         | Send every email to this Mailpit instead, see below.                  |
 | `redirectTo`             | `string`  | none                         | Send every email to this address instead.                             |
 | `webhook_secret`         | `string`  | none                         | Signing secret that turns on [delivery webhooks](#delivery-webhooks). |
 | `contacts.contactBookId` | `string`  | none                         | Default contact book for [contacts](#contacts).                       |
@@ -381,8 +382,10 @@ useSend only accepts `filename` and `content`, so other fields of Medusa's attac
 
 ## Testing without sending
 
-Two options keep test emails away from real customers. Both can be set per environment:
+Three options keep test emails away from real customers. All of them can be set per environment:
 
+- `mailpitUrl: 'http://localhost:8025'` sends every email to [Mailpit](https://mailpit.axllent.org), a local inbox, see
+  below.
 - `dryRun: true` logs each email (recipient, subject and template) instead of sending it.
 - `redirectTo: 'dev@example.com'` sends every email to one address. The original recipients go into an
   `X-Original-To` header, and CC and BCC are dropped.
@@ -397,6 +400,34 @@ options: {
   },
 }
 ```
+
+### Mailpit
+
+[Mailpit](https://mailpit.axllent.org) catches the emails in a web inbox, where you can read the HTML and plain text
+and open the attachments. Run it next to your database, e.g. in `docker-compose.yml`:
+
+```yml
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '127.0.0.1:8025:8025'
+```
+
+Then set `mailpitUrl` for local development. The plugin sends through Mailpit's HTTP API, so no useSend API key is
+needed, and the inbox is at `http://localhost:8025`:
+
+```ts
+options: {
+  api_key: process.env.USESEND_API_KEY,
+  from: 'Shop <no-reply@example.com>',
+  mailpitUrl: process.env.MAILPIT_URL, // http://localhost:8025 in your local .env
+}
+```
+
+Each email is tagged with its template name. A useSend dashboard template can't be rendered locally, so it arrives
+as text with the template id and variables. Keep Mailpit bound to localhost: it accepts email from anyone who can
+reach it.
 
 ## Delivery webhooks
 

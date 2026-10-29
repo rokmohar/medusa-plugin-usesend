@@ -21,6 +21,7 @@ const templatesResponseSchema = z.object({
   status: z.object({
     dryRun: z.boolean(),
     redirectTo: z.string().nullable(),
+    mailpitUrl: z.string().nullable(),
     defaultLocale: z.string().nullable(),
     webhooks: z.boolean(),
     contactBookId: z.string().nullable(),
@@ -92,10 +93,14 @@ const TemplatePanel = ({ template }: { template: Template }) => {
       ).notification
     },
     onSuccess: (notification) => {
+      const externalId = notification.external_id ?? ''
+
       toast.success(
-        notification.external_id?.startsWith('dry-run-')
+        externalId.startsWith('dry-run-')
           ? 'Dry run: the email was logged, not sent'
-          : `Test email sent (${notification.status})`,
+          : externalId.startsWith('mailpit-')
+            ? 'Caught in Mailpit, open its inbox to read it'
+            : `Test email sent (${notification.status})`,
       )
     },
     onError: (error) => {
@@ -265,8 +270,14 @@ const UseSendPage = () => {
           </Text>
         </div>
         {status && (
-          <Badge color={status.dryRun ? 'orange' : status.redirectTo ? 'blue' : 'green'}>
-            {status.dryRun ? 'Dry run' : status.redirectTo ? `Redirect to ${status.redirectTo}` : 'Live'}
+          <Badge color={status.dryRun ? 'orange' : status.mailpitUrl || status.redirectTo ? 'blue' : 'green'}>
+            {status.dryRun
+              ? 'Dry run'
+              : status.mailpitUrl
+                ? 'Mailpit'
+                : status.redirectTo
+                  ? `Redirect to ${status.redirectTo}`
+                  : 'Live'}
           </Badge>
         )}
       </div>

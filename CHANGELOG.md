@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-29
+
+### Added
+
+- `mailpitUrl` option: in local development, every email goes to a [Mailpit](https://mailpit.axllent.org) inbox
+  instead of useSend, with its HTML, plain text, attachments and recipients.
+- The admin page shows when emails go to Mailpit.
+
+### Changed
+
+- `api_key` is only required when emails are sent through useSend, not with `mailpitUrl` or `dryRun`.
+
 ## [2.1.0] - 2026-10-29
 
 ### Added
@@ -69,6 +81,7 @@ Versions up to 1.1.2 were published as
 [`@rokmohar/medusa-plugin-unsend`](https://www.npmjs.com/package/@rokmohar/medusa-plugin-unsend). Their notes are in
 the [GitHub releases](https://github.com/rokmohar/medusa-plugin-usesend/releases).
 
-[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v1.1.2...v2.0.0

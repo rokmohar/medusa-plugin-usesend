@@ -55,10 +55,10 @@ export interface UseSendEmailOptions {
   url?: string
 
   /**
-   * useSend API key
-   * @example 'sk_test_123456789'
+   * useSend API key. Optional when `mailpitUrl` or `dryRun` is set.
+   * @example 'us_123456789'
    */
-  api_key: string
+  api_key?: string
 
   /**
    * Default sender email address
@@ -92,6 +92,13 @@ export interface UseSendEmailOptions {
    * @default false
    */
   dryRun?: boolean
+
+  /**
+   * Send every email to this Mailpit instance instead of useSend, to read them in its inbox during development.
+   * No API key is needed then.
+   * @example 'http://localhost:8025'
+   */
+  mailpitUrl?: string
 
   /**
    * Send every email to this address instead of its recipients

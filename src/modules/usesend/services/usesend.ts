@@ -72,6 +72,33 @@ const toApiError = (action: string, error: unknown) => {
   return new MedusaError(MedusaError.Types.INVALID_DATA, `Failed to ${action}: ${message}`, code)
 }
 
+/**
+ * Merges the overrides of the current `NODE_ENV` over the options.
+ */
+const withEnvironment = <T extends Partial<UseSendEmailOptions>>(options: T): T => {
+  const env = process.env.NODE_ENV || 'development'
+  const envConfig = isEnvironmentName(env) ? options.environment?.[env] : undefined
+
+  return envConfig ? { ...options, ...envConfig } : options
+}
+
+/**
+ * Splits `Shop <shop@example.com>` into Mailpit's `{ Name, Email }`.
+ */
+const parseAddress = (address: string): { Email: string; Name?: string } => {
+  const match = /^\s*"?(.*?)"?\s*<([^>]+)>\s*$/.exec(address)
+
+  if (!match?.[2]) {
+    return { Email: address.trim() }
+  }
+
+  return match[1] ? { Email: match[2], Name: match[1] } : { Email: match[2] }
+}
+
+const toAddressList = (value: string | string[] | undefined): string[] => (value === undefined ? [] : [value].flat())
+
+const mailpitResponseSchema = z.object({ ID: z.string() })
+
 const recipientsSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)])
 
 /**
@@ -110,8 +137,9 @@ export class UseSendService implements INotificationProvider {
 
   constructor({ logger }: InjectedDependencies, options: Record<any, any>) {
     const validOptions = this.toPluginOptions(options)
-    this.client = new UseSend(validOptions.api_key, validOptions?.url)
-    this.options = this.applyEnvironmentConfig(validOptions)
+    this.options = withEnvironment(validOptions)
+    // Without an API key, which only Mailpit and dry runs allow, the client is never used to send.
+    this.client = new UseSend(this.options.api_key || 'no-api-key', this.options.url)
     this.logger = logger
     this.templateRepository = TemplateRepository.getInstance()
     this.rateLimiter = new RateLimiter(this.options.rateLimit?.maxPerMinute)
@@ -138,6 +166,10 @@ export class UseSendService implements INotificationProvider {
       )
 
       return { id: `dry-run-${randomUUID()}` }
+    }
+
+    if (this.options.mailpitUrl) {
+      return this.sendToMailpit(this.options.mailpitUrl, payload, notification.template)
     }
 
     return this.sendWithRetry(payload, notificationId)
@@ -209,6 +241,7 @@ export class UseSendService implements INotificationProvider {
       dryRun: this.options.dryRun ?? false,
       redirectTo: this.options.redirectTo ?? null,
       defaultLocale: this.options.defaultLocale ?? null,
+      mailpitUrl: this.options.mailpitUrl ?? null,
       webhooks: !!this.options.webhook_secret,
       contactBookId: this.options.contacts?.contactBookId ?? null,
     }
@@ -258,12 +291,13 @@ export class UseSendService implements INotificationProvider {
 
   static validateOptions(options: Record<any, any>) {
     const errors: string[] = []
+    const effective = withEnvironment(options)
 
-    // Required fields validation
-    if (!options.api_key) {
-      errors.push('Option `api_key` is required in the useSend options')
+    // Required fields validation. Without useSend, in Mailpit or a dry run, no API key is needed.
+    if (!effective.api_key && !effective.mailpitUrl && !effective.dryRun) {
+      errors.push('Option `api_key` is required in the useSend options, unless `mailpitUrl` or `dryRun` is set')
     }
-    if (!options.from) {
+    if (!effective.from) {
       errors.push('Option `from` is required in the useSend options')
     }
 
@@ -317,6 +351,9 @@ export class UseSendService implements INotificationProvider {
     if (options.defaultLocale !== undefined && (typeof options.defaultLocale !== 'string' || !options.defaultLocale)) {
       errors.push('Option `defaultLocale` must be a locale, e.g. "en"')
     }
+    if (options.mailpitUrl !== undefined && !/^https?:\/\//.test(String(options.mailpitUrl))) {
+      errors.push('Option `mailpitUrl` must be a valid HTTP(S) URL, e.g. "http://localhost:8025"')
+    }
     if (options.webhook_secret !== undefined && typeof options.webhook_secret !== 'string') {
       errors.push('Option `webhook_secret` must be a string')
     }
@@ -338,18 +375,50 @@ export class UseSendService implements INotificationProvider {
     }
   }
 
-  private applyEnvironmentConfig(options: UseSendEmailOptions): UseSendEmailOptions {
-    const env = process.env.NODE_ENV || 'development'
-    const envConfig = isEnvironmentName(env) ? options.environment?.[env] : undefined
+  /**
+   * Sends the email to a Mailpit inbox instead of useSend, for local development.
+   */
+  private async sendToMailpit(
+    mailpitUrl: string,
+    payload: SendEmailPayload,
+    template: string,
+  ): Promise<ProviderSendNotificationResultsDTO> {
+    const { templateId, variables } = payload
+    const response = await fetch(`${mailpitUrl.replace(/\/+$/, '')}/api/v1/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        From: parseAddress(payload.from),
+        To: toAddressList(payload.to).map(parseAddress),
+        Cc: toAddressList(payload.cc).map(parseAddress),
+        Bcc: toAddressList(payload.bcc).map((address) => parseAddress(address).Email),
+        ReplyTo: toAddressList(payload.replyTo).map(parseAddress),
+        Subject: payload.subject ?? `useSend template ${templateId}`,
+        HTML: payload.html ?? undefined,
+        // A useSend dashboard template can't be rendered locally, so the inbox shows what would be sent.
+        Text:
+          payload.text ??
+          (templateId
+            ? `useSend template ${templateId} with variables:\n${JSON.stringify(variables ?? {}, null, 2)}`
+            : undefined),
+        Headers: { ...payload.headers, ...(payload.scheduledAt ? { 'X-Scheduled-At': payload.scheduledAt } : {}) },
+        Attachments: payload.attachments?.map(({ filename, content }) => ({ Filename: filename, Content: content })),
+        Tags: [template],
+      }),
+    })
 
-    if (envConfig) {
-      return {
-        ...options,
-        ...envConfig,
-      }
+    if (!response.ok) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        `Failed to send email to Mailpit: ${response.status} ${await response.text()}`,
+      )
     }
 
-    return options
+    const { ID } = mailpitResponseSchema.parse(await response.json())
+
+    this.logger.info(`[usesend] Caught "${payload.subject ?? templateId}" to ${String(payload.to)} in Mailpit`)
+
+    return { id: `mailpit-${ID}` }
   }
 
   private parseProviderData(value: unknown): UseSendProviderData {

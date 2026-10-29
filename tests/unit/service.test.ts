@@ -374,3 +374,103 @@ describe('contacts', () => {
     await assert.rejects(service.upsertContact({ email: 'ana@example.com' }), /No contact book id given/)
   })
 })
+
+describe('mailpit', () => {
+  const setup = (status = 200) => {
+    const requests: { url: string; body: Record<string, unknown> }[] = []
+    const fetchMock = mock.method(globalThis, 'fetch', async (url: string, init: { body: string }) => {
+      requests.push({ url, body: JSON.parse(init.body) })
+
+      return new Response(status === 200 ? JSON.stringify({ ID: 'msg_1' }) : 'nope', { status })
+    })
+    const { service, send, messages } = createService({ api_key: '', mailpitUrl: 'http://localhost:8025/' })
+
+    return { service, send, messages, requests, fetchMock }
+  }
+
+  it('sends the email to Mailpit instead of useSend, without an API key', async () => {
+    const { service, send, requests, fetchMock } = setup()
+    const template = addTemplate(service, 'Caught')
+
+    try {
+      const result = await service.send({
+        to: 'Ana <ana@example.com>',
+        channel: 'email',
+        template,
+        data: { name: 'Ana' },
+        attachments: [{ filename: 'invoice.pdf', content: 'QQ==' }],
+        provider_data: {
+          replyTo: 'support@example.com',
+          cc: ['"The Boss" <boss@example.com>'],
+          bcc: 'Archive <archive@example.com>',
+          scheduledAt: '2026-11-01T09:00:00Z',
+        },
+      })
+
+      assert.deepEqual(result, { id: 'mailpit-msg_1' })
+      assert.equal(send.mock.callCount(), 0)
+      assert.equal(requests[0]?.url, 'http://localhost:8025/api/v1/send')
+      assert.deepEqual(requests[0]?.body, {
+        From: { Email: 'shop@example.com', Name: 'Shop' },
+        To: [{ Email: 'ana@example.com', Name: 'Ana' }],
+        Cc: [{ Email: 'boss@example.com', Name: 'The Boss' }],
+        Bcc: ['archive@example.com'],
+        ReplyTo: [{ Email: 'support@example.com' }],
+        Subject: 'Caught',
+        HTML: requests[0]?.body.HTML,
+        Text: 'Hi Ana',
+        Headers: { 'X-Scheduled-At': '2026-11-01T09:00:00Z' },
+        Attachments: [{ Filename: 'invoice.pdf', Content: 'QQ==' }],
+        Tags: [template],
+      })
+      assert.match(String(requests[0]?.body.HTML), /<p>Hi Ana<\/p>/)
+    } finally {
+      fetchMock.mock.restore()
+    }
+  })
+
+  it('shows a useSend dashboard template as text', async () => {
+    const { service, requests, fetchMock } = setup()
+
+    try {
+      await service.send({
+        to: 'ana@example.com',
+        channel: 'email',
+        template: 'dashboard',
+        provider_data: { templateId: 'tmpl_1', variables: { name: 'Ana' } },
+      })
+
+      assert.equal(requests[0]?.body.Subject, 'useSend template tmpl_1')
+      assert.match(String(requests[0]?.body.Text), /tmpl_1 with variables:[\s\S]*"name": "Ana"/)
+    } finally {
+      fetchMock.mock.restore()
+    }
+  })
+
+  it('fails when Mailpit rejects the email', async () => {
+    const { service, fetchMock } = setup(400)
+    const template = addTemplate(service)
+
+    try {
+      await assert.rejects(
+        service.send({ to: 'ana@example.com', channel: 'email', template }),
+        /Failed to send email to Mailpit: 400 nope/,
+      )
+    } finally {
+      fetchMock.mock.restore()
+    }
+  })
+
+  it('still requires an API key without Mailpit or a dry run', () => {
+    assert.throws(() => {
+      UseSendService.validateOptions({ from: 'a@b.c' })
+    }, /`api_key` is required/)
+    assert.throws(() => {
+      UseSendService.validateOptions({ from: 'a@b.c', mailpitUrl: 'localhost:8025' })
+    }, /`mailpitUrl` must be a valid HTTP\(S\) URL/)
+    UseSendService.validateOptions({
+      from: 'a@b.c',
+      environment: { development: { mailpitUrl: 'http://localhost:8025' } },
+    })
+  })
+})
