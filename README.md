@@ -1,294 +1,343 @@
-# Unsend plugin for MedusaJS v2
+# useSend plugin for Medusa
+
+[![npm version](https://img.shields.io/npm/v/@rokmohar/medusa-plugin-usesend)](https://www.npmjs.com/package/@rokmohar/medusa-plugin-usesend)
+[![npm downloads](https://img.shields.io/npm/dm/@rokmohar/medusa-plugin-usesend)](https://www.npmjs.com/package/@rokmohar/medusa-plugin-usesend)
+[![CI](https://github.com/rokmohar/medusa-plugin-usesend/actions/workflows/ci.yml/badge.svg)](https://github.com/rokmohar/medusa-plugin-usesend/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/npm/l/@rokmohar/medusa-plugin-usesend)](./LICENSE)
+
+Send Medusa email notifications through [useSend](https://usesend.com), the open-source email platform formerly
+called Unsend. Write your emails as React components, and the plugin renders and sends them.
+
+- [Features](#features)
+- [Compatibility](#compatibility)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Email templates](#email-templates)
+- [Sending emails](#sending-emails)
+- [Attachments](#attachments)
+- [Migrating from @rokmohar/medusa-plugin-unsend](#migrating-from-rokmoharmedusa-plugin-unsend)
+- [Self-hosting useSend](#self-hosting-usesend)
+- [Changelog](#changelog)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
+
+## Features
+
+- **Notification provider** for Medusa's notification module, on the `email` channel.
+- **React email templates**, loaded from a folder and rendered to HTML with your app's own React.
+- **Attachments** from Medusa's `createNotifications` call.
+- **Retries** with exponential or linear backoff, so a short outage doesn't lose an email.
+- **Rate limiting** per minute.
+- **Per-environment overrides** of any option, keyed by `NODE_ENV`.
+- Works with useSend Cloud and self-hosted useSend.
+
+## Compatibility
+
+| Plugin                                 | Medusa          |
+| -------------------------------------- | --------------- |
+| `@rokmohar/medusa-plugin-usesend` 2.x  | 2.22 or newer   |
+| `@rokmohar/medusa-plugin-unsend` 1.1.x | 2.19 – 2.21     |
+| `@rokmohar/medusa-plugin-unsend` 1.0.8 | 2.4 – 2.18      |
+| `@rokmohar/medusa-plugin-unsend` 0.2.4 | 2.3.1 and older |
+
+Node.js 22.22 or newer is required, the same as Medusa 2.22.
 
 ## Installation
 
-Run the following command to install the plugin with **npm**:
+```bash
+npm install @rokmohar/medusa-plugin-usesend
+```
+
+Or with Yarn:
 
 ```bash
-npm install --save @rokmohar/medusa-plugin-unsend
+yarn add @rokmohar/medusa-plugin-usesend
 ```
 
-Or with **yarn**:
+## Quick start
 
-```bash
-yarn add @rokmohar/medusa-plugin-unsend
-```
+1. Add your useSend credentials to `.env`:
 
-## ⚠️ MedusaJS v2.19.0 or newer
+   ```env
+   USESEND_API_KEY=us_...
+   USESEND_FROM=Shop <no-reply@example.com>
+   # Only for self-hosted useSend; useSend Cloud is the default
+   USESEND_URL=
+   ```
 
-This plugin is only for MedusaJS v2.19.0 or newer.
+2. Register the plugin and the notification provider in `medusa-config.ts`:
 
-If you are using MedusaJS v2.4.0 - v2.18.x, please use the [v1.0.8 version of this plugin](https://github.com/rokmohar/medusa-plugin-unsend/tree/v1.0.8).
+   ```ts
+   import { defineConfig, loadEnv } from '@medusajs/framework/utils'
+   import type { UseSendEmailOptions } from '@rokmohar/medusa-plugin-usesend'
 
-If you are using MedusaJS v2.3.1 or older, please use the [older version of this plugin](https://github.com/rokmohar/medusa-plugin-unsend/tree/v0.2.4).
+   loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
-## Configuration
+   module.exports = defineConfig({
+     // ... other config
+     plugins: [
+       {
+         resolve: '@rokmohar/medusa-plugin-usesend',
+         options: {
+           url: process.env.USESEND_URL,
+           api_key: process.env.USESEND_API_KEY ?? '',
+           from: process.env.USESEND_FROM ?? '',
+         } satisfies UseSendEmailOptions,
+       },
+     ],
+     modules: [
+       {
+         resolve: '@medusajs/medusa/notification',
+         dependencies: ['usesend'],
+         options: {
+           providers: [
+             {
+               resolve: '@rokmohar/medusa-plugin-usesend/providers/notification',
+               id: 'usesend',
+               options: {
+                 channels: ['email'],
+               },
+             },
+           ],
+         },
+       },
+     ],
+   })
+   ```
 
-Add the plugin to your `medusa-config.ts` file:
+3. Add a template to `src/templates/emails` (see [Email templates](#email-templates)) and send it from a subscriber
+   or workflow (see [Sending emails](#sending-emails)).
 
-```js
-import { loadEnv, defineConfig } from '@medusajs/framework/utils'
+The provider path is also exported as a constant, if you prefer it over the string:
 
-loadEnv(process.env.NODE_ENV || 'development', process.cwd())
-
-module.exports = defineConfig({
-  // ... other config
-  plugins: [
-    // ... other plugins
-    {
-      resolve: '@rokmohar/medusa-plugin-unsend',
-      options: {
-        // Required options
-        url: process.env.UNSEND_URL ?? '',
-        api_key: process.env.UNSEND_API_KEY ?? '',
-        from: process.env.UNSEND_FROM ?? '',
-
-        // Optional configuration
-        templateDir: 'custom/templates/path', // Custom template directory
-        retry: {
-          maxAttempts: 5, // Number of retry attempts for failed sends
-          delay: 2000, // Delay between retries in milliseconds
-        },
-        rateLimit: {
-          maxPerMinute: 30, // Maximum emails per minute
-        },
-        // Environment configurations based on NODE_ENV
-        environment: {
-          development: {
-            // Development-specific overrides
-            from: 'dev@example.com',
-            rateLimit: {
-              maxPerMinute: 25,
-            },
-          },
-          staging: {
-            // Staging-specific overrides
-            from: 'stage@example.com',
-            rateLimit: {
-              maxPerMinute: 50,
-            },
-          },
-          production: {
-            // Production-specific overrides
-            from: 'prod@example.com',
-            rateLimit: {
-              maxPerMinute: 100,
-            },
-          },
-        },
-      },
-    },
-  ],
-  modules: [
-    // ... other modules
-    {
-      resolve: '@medusajs/medusa/notification',
-      dependencies: ['unsend'],
-      options: {
-        providers: [
-          // ... other providers
-          {
-            resolve: '@rokmohar/medusa-plugin-unsend/providers/notification',
-            id: 'unsend',
-            options: {
-              channels: ['email'],
-            },
-          },
-        ],
-      },
-    },
-  ],
-})
-```
-
-Instead of the `@rokmohar/medusa-plugin-unsend/providers/notification` path, you can also use the exported
-`UNSEND_PROVIDER_PATH` constant, which resolves to the same provider:
-
-```js
-import { UNSEND_PROVIDER_PATH } from '@rokmohar/medusa-plugin-unsend'
+```ts
+import { USESEND_PROVIDER_PATH } from '@rokmohar/medusa-plugin-usesend'
 
 // ...
 {
-  resolve: UNSEND_PROVIDER_PATH,
-  id: 'unsend',
-  options: {
-    channels: ['email'],
+  resolve: USESEND_PROVIDER_PATH,
+  id: 'usesend',
+  options: { channels: ['email'] },
+}
+```
+
+## Configuration
+
+| Option                   | Type     | Default                      | Description                                                           |
+| ------------------------ | -------- | ---------------------------- | --------------------------------------------------------------------- |
+| `api_key`                | `string` | required                     | useSend API key.                                                      |
+| `from`                   | `string` | required                     | Default sender, e.g. `Shop <no-reply@example.com>`.                   |
+| `url`                    | `string` | `https://app.usesend.com`    | API URL. Set it to your instance's URL when you self-host useSend.    |
+| `templateDir`            | `string` | `<cwd>/src/templates/emails` | Folder the email templates are loaded from.                           |
+| `retry.maxAttempts`      | `number` | `3`                          | Attempts per email, including the first one.                          |
+| `retry.delay`            | `number` | `1000`                       | Delay before the first retry in ms.                                   |
+| `retry.backoff`          | `string` | `'exponential'`              | `'exponential'` doubles the delay on every retry, `'linear'` adds it. |
+| `rateLimit.maxPerMinute` | `number` | `60`                         | Maximum emails sent per minute. Further emails wait.                  |
+| `environment`            | `object` | none                         | Overrides of any option above per `NODE_ENV`, see below.              |
+
+The options are validated at startup, and an invalid configuration stops the server with a message listing every
+problem.
+
+### Per-environment overrides
+
+`environment` takes `development`, `staging` and `production` keys. The overrides of the current `NODE_ENV` are
+merged over the top-level options:
+
+```ts
+options: {
+  api_key: process.env.USESEND_API_KEY ?? '',
+  from: 'Shop <no-reply@example.com>',
+  environment: {
+    development: {
+      from: 'Shop (dev) <dev@example.com>',
+      rateLimit: { maxPerMinute: 10 },
+    },
+    production: {
+      retry: { maxAttempts: 5, delay: 2000 },
+    },
   },
 }
 ```
 
-## ENV variables
+## Email templates
 
-Add the environment variables to your `.env` and `.env.template` file:
-
-```env
-# ... others vars
-UNSEND_URL=
-UNSEND_API_KEY=
-UNSEND_FROM=
-```
-
-If you want to use with the `docker-compose` from this README, use the following values:
-
-```env
-# ... others vars
-UNSEND_URL=http://localhost:3000
-UNSEND_API_KEY=test_123456789
-UNSEND_FROM=no-reply@example.org
-```
-
-## Email Templates
-
-The plugin automatically loads email templates from the `src/templates/emails` directory in your project root (or a custom directory specified in the configuration). Each template consists of two files:
-
-1. A TSX file containing the React component
-2. An optional JSON file for template metadata
-
-Templates are rendered to HTML by the plugin, with the `react` and `react-dom` of your application, before they are sent. The React version bundled with the Unsend SDK is never used.
-
-### Template Structure
+At startup the plugin loads every `.tsx` and `.js` file in the template folder. Each file's default export is a React
+component that receives the notification's `data` as props:
 
 ```tsx
-// src/templates/emails/ProductUpsert.tsx
-import React from 'react'
+// src/templates/emails/OrderPlaced.tsx
+type Props = {
+  display_id: number
+  customer_name: string
+}
 
-const ProductUpsertEmail = (props: any) => {
+const OrderPlaced = ({ display_id, customer_name }: Props) => {
   return (
     <div>
-      <h1>Product Updated</h1>
-      <p>Product ID: {props.productId}</p>
+      <h1>Thanks for your order, {customer_name}!</h1>
+      <p>Your order #{display_id} has been received.</p>
     </div>
   )
 }
 
-// Set email subject
-ProductUpsertEmail.Subject = 'Products upserted'
+OrderPlaced.Subject = 'Your order has been received'
 
-export default ProductUpsertEmail
+export default OrderPlaced
 ```
 
-The email subject is determined in the following order of precedence:
+- The template name is the file name in kebab case: `OrderPlaced.tsx` becomes `order-placed`.
+- Templates are rendered to HTML with your app's `react` and `react-dom`, so they work with
+  [React Email](https://react.email) components.
+- In production, Medusa compiles the templates to `.js` in `.medusa/server/src/templates/emails`, and the plugin loads
+  those.
 
-1. `content.subject` provided in the `createNotifications` call
-2. `subject` field in the template's metadata JSON file
-3. `ComponentName.Subject` static property in the TSX file
-4. Kebab-case template name (derived from the filename)
+### Subject
 
-For example, if you have a template named `ProductUpsert.tsx`, the subject will fall back to `product-upsert` if no other subject is specified.
+The subject is taken from the first of these that is set:
+
+1. `content.subject` in the `createNotifications` call
+2. `subject` in the template's metadata file
+3. The component's static `Subject` property
+4. The template name, e.g. `order-placed`
+
+### Metadata file
+
+A JSON file with the same name next to the template is optional:
 
 ```json
-// src/templates/emails/ProductUpsert.json
+// src/templates/emails/OrderPlaced.json
 {
   "version": "1.0.0",
-  "subject": "Product upsert",
-  "description": "Email template for product updates",
-  "tags": ["product", "update"],
-  "category": "product-notifications"
+  "subject": "Your order has been received",
+  "description": "Sent to the customer after checkout",
+  "tags": ["order", "customer"],
+  "category": "orders"
 }
 ```
 
-The template name will be derived from the filename (without the .tsx extension). For example, `ProductUpsert.tsx` will be available as the template named `product-upsert`.
+## Sending emails
 
-### Template Metadata
+Send an email through Medusa's notification module, with the template name and the data for its props:
 
-The JSON file is optional and can contain the following fields:
-
-- `version`: Template version (defaults to "1.0.0")
-- `subject`: Template subject
-- `description`: Template description
-- `tags`: Array of tags for categorizing templates
-- `category`: Template category
-
-### Email Subject Precedence
-
-The email subject is determined in the following order of precedence:
-
-1. `content.subject` provided in the `createNotifications` call
-2. `subject` field in the template's metadata JSON file
-3. `ComponentName.Subject` static property in the TSX file
-4. Kebab-case template name (derived from the filename)
-
-For example, if you have a template named `ProductUpsert.tsx`, the subject will fall back to `product-upsert` if no other subject is specified.
-
-## Attachments
-
-Attachments are passed as a top-level `attachments` field of the `createNotifications` call. Each attachment
-requires a `filename` and a base64-encoded `content`:
-
-```js
-await notificationModuleService.createNotifications({
-  to: 'first.last@example.org',
-  channel: 'email',
-  template: 'product-upsert',
-  attachments: [
-    {
-      filename: 'invoice.pdf',
-      content: base64EncodedContent,
-    },
-  ],
-})
-```
-
-Passing the attachments in `data.attachments` is still supported for backwards compatibility. Unsend only accepts
-`filename` and `content`, so any other field of the Medusa attachment (`content_type`, `disposition`, `id`) is ignored.
-
-## Features
-
-- **Attachments**: Send file attachments with your emails
-- **Environment-specific Configuration**: Override settings for different environments (development, staging, production)
-- **Rate Limiting**: Prevent overwhelming the email service with configurable limits
-- **Retry Mechanism**: Automatic retries for failed email sends with exponential backoff
-- **Template Versioning**: Track template versions and changes
-- **Template Metadata**: Add descriptions, tags, and categories to templates
-- **Custom Template Directory**: Configure the location of your email templates
-
-## Subscribers
-
-You must add the following subscribers to the `src/subscribers`:
-
-### product-upsert.ts
-
-```js
-import { SubscriberArgs, SubscriberConfig } from '@medusajs/framework'
-import { IProductModuleService } from '@medusajs/framework/types'
+```ts
+// src/subscribers/order-placed.ts
+import type { SubscriberArgs, SubscriberConfig } from '@medusajs/framework'
 import { Modules } from '@medusajs/framework/utils'
-import { ProductEvents } from '@medusajs/framework/utils'
-import { UnsendService } from '@rokmohar/medusa-plugin-unsend'
 
-export default async function productCreatedHandler({ event: { data }, container }: SubscriberArgs<{ id: string }>) {
-  const productId = data.id
-
-  // Make sure template is registered, before creating email notifications
-  const unsendService: UnsendService = container.resolve('unsend')
-
+export default async function orderPlacedHandler({ event: { data }, container }: SubscriberArgs<{ id: string }>) {
+  const query = container.resolve('query')
   const notificationModuleService = container.resolve(Modules.NOTIFICATION)
+
+  const {
+    data: [order],
+  } = await query.graph({
+    entity: 'order',
+    fields: ['display_id', 'email', 'shipping_address.first_name'],
+    filters: { id: data.id },
+  })
+
   await notificationModuleService.createNotifications({
-    to: 'first.last@example.org',
+    to: order.email,
     channel: 'email',
-    // Use name of the registered template
-    template: 'product-upsert',
-    // Set email subject
-    content: {
-      subject: 'Product upserted',
+    template: 'order-placed',
+    data: {
+      display_id: order.display_id,
+      customer_name: order.shipping_address?.first_name,
     },
   })
 }
 
 export const config: SubscriberConfig = {
-  event: [ProductEvents.PRODUCT_CREATED, ProductEvents.PRODUCT_UPDATED],
+  event: 'order.placed',
 }
 ```
 
-## docker-compose
+The plugin's service is registered in the container as `usesend`. Use it to register templates in code instead of
+files, or to check that a template exists:
 
-You can add the following configuration for Unsend to your `docker-compose.yml`:
+```ts
+import type { UseSendService } from '@rokmohar/medusa-plugin-usesend'
 
-```yml
-services:
-  # ... other services
+const usesend = container.resolve<UseSendService>('usesend')
 
-  unsend:
-    image: 'unsend/unsend:latest'
-    ports:
-      - '3000:3000'
+usesend.addTemplate('welcome', {
+  subject: 'Welcome!',
+  content: { html: '<p>Welcome to our shop.</p>' },
+})
 ```
+
+## Attachments
+
+Pass attachments in the `attachments` field of `createNotifications`. Each one needs a `filename` and base64-encoded
+`content`:
+
+```ts
+await notificationModuleService.createNotifications({
+  to: 'customer@example.com',
+  channel: 'email',
+  template: 'invoice',
+  attachments: [
+    {
+      filename: 'invoice-42.pdf',
+      content: pdfBuffer.toString('base64'),
+    },
+  ],
+})
+```
+
+useSend only accepts `filename` and `content`, so other fields of Medusa's attachment (`content_type`, `disposition`,
+`id`) are ignored. Attachments in `data.attachments` are still read, for older code.
+
+## Migrating from @rokmohar/medusa-plugin-unsend
+
+Unsend was renamed to useSend, and this plugin was renamed with it in 2.0.0. Your templates and options don't change.
+
+1. Swap the package:
+
+   ```bash
+   npm uninstall @rokmohar/medusa-plugin-unsend
+   npm install @rokmohar/medusa-plugin-usesend
+   ```
+
+2. Rename in your code and `medusa-config.ts`:
+
+   | 1.x (`@rokmohar/medusa-plugin-unsend`)                               | 2.x (`@rokmohar/medusa-plugin-usesend`)                                 |
+   | -------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+   | `resolve: '@rokmohar/medusa-plugin-unsend'`                          | `resolve: '@rokmohar/medusa-plugin-usesend'`                            |
+   | `'@rokmohar/medusa-plugin-unsend/providers/notification'`            | `'@rokmohar/medusa-plugin-usesend/providers/notification'`              |
+   | `UNSEND_PROVIDER_PATH`                                               | `USESEND_PROVIDER_PATH`                                                 |
+   | `dependencies: ['unsend']`                                           | `dependencies: ['usesend']`                                             |
+   | `container.resolve('unsend')`                                        | `container.resolve('usesend')`                                          |
+   | `UnsendService`                                                      | `UseSendService`                                                        |
+   | `UnsendEmailOptions`, `UnsendEmailTemplate`, `UnsendEmailAttachment` | `UseSendEmailOptions`, `UseSendEmailTemplate`, `UseSendEmailAttachment` |
+
+3. Optionally rename the provider `id` from `unsend` to `usesend`. Medusa stores the provider id on each sent
+   notification, so keep `unsend` if you rely on filtering past notifications by provider.
+
+4. Optionally rename your `UNSEND_*` environment variables to `USESEND_*`. The plugin only reads the values you pass in
+   its options.
+
+## Self-hosting useSend
+
+useSend can run on your own server; it needs PostgreSQL, Redis and AWS SES. Follow the
+[self-hosting guide](https://docs.usesend.com/self-hosting/overview), then set `url` to your instance, e.g.
+`http://localhost:3000`.
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) and the [GitHub releases](https://github.com/rokmohar/medusa-plugin-usesend/releases).
+
+## Contributing
+
+Bug reports, documentation fixes and pull requests are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the
+development setup and the [code of conduct](./CODE_OF_CONDUCT.md).
+
+## Security
+
+Please report vulnerabilities privately, as described in [SECURITY.md](./SECURITY.md).
+
+## License
+
+[MIT](./LICENSE) © Rok Mohar

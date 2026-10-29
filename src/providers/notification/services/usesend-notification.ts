@@ -1,23 +1,23 @@
 import { ProviderSendNotificationDTO, ProviderSendNotificationResultsDTO } from '@medusajs/framework/types'
 import { AbstractNotificationProviderService } from '@medusajs/framework/utils'
-import { UnsendService } from '../../../modules/unsend'
+import { UseSendService } from '../../../modules/usesend'
 
 interface InjectedDependencies {
-  unsend: UnsendService
+  usesend: UseSendService
 }
 
-export class UnsendNotificationService extends AbstractNotificationProviderService {
-  static identifier = 'notification-unsend'
+export class UseSendNotificationService extends AbstractNotificationProviderService {
+  static identifier = 'notification-usesend'
 
-  private unsend: UnsendService
+  private usesend: UseSendService
 
-  constructor({ unsend }: InjectedDependencies) {
+  constructor({ usesend }: InjectedDependencies) {
     super()
-    this.unsend = unsend
+    this.usesend = usesend
   }
 
   async send(notification: ProviderSendNotificationDTO): Promise<ProviderSendNotificationResultsDTO> {
-    return this.unsend.send(notification)
+    return this.usesend.send(notification)
   }
 
   static validateOptions() {}

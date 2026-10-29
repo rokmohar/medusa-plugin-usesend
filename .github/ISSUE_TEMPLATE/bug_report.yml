@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in the plugin does not work as documented.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security vulnerabilities go through the [security policy](https://github.com/rokmohar/medusa-plugin-usesend/security/policy), not here.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Include error messages and server logs. Remove your API key and recipient addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: A minimal sequence of steps that triggers the bug.
+      placeholder: |
+        1. Configure the plugin with ...
+        2. Send the `order-placed` template from a subscriber
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: The plugin and notification module entries from medusa-config.ts, without the API key.
+      render: ts
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 2.0.0
+    validations:
+      required: true
+  - type: input
+    id: medusa-version
+    attributes:
+      label: Medusa version
+      placeholder: 2.22.1
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      placeholder: 22.22.0

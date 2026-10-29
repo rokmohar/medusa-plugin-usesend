@@ -1,4 +1,4 @@
-import { UnsendEmailTemplate } from '../types'
+import { UseSendEmailTemplate } from '../types'
 
 export interface ValidationResult {
   isValid: boolean
@@ -19,7 +19,7 @@ export interface ValidationWarning {
 }
 
 export interface ValidationRule {
-  validate(template: UnsendEmailTemplate): ValidationResult
+  validate(template: UseSendEmailTemplate): ValidationResult
 }
 
 export class TemplateValidator {
@@ -33,7 +33,7 @@ export class TemplateValidator {
     this.rules.push(rule)
   }
 
-  validate(template: UnsendEmailTemplate): ValidationResult {
+  validate(template: UseSendEmailTemplate): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
 
@@ -53,7 +53,7 @@ export class TemplateValidator {
 
 // Built-in validation rules
 export class RequiredFieldsRule implements ValidationRule {
-  validate(template: UnsendEmailTemplate): ValidationResult {
+  validate(template: UseSendEmailTemplate): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
 
@@ -78,7 +78,7 @@ export class RequiredFieldsRule implements ValidationRule {
 }
 
 export class ReactPropsRule implements ValidationRule {
-  validate(template: UnsendEmailTemplate): ValidationResult {
+  validate(template: UseSendEmailTemplate): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
 
@@ -105,7 +105,7 @@ export class ReactPropsRule implements ValidationRule {
 }
 
 export class HtmlValidationRule implements ValidationRule {
-  validate(template: UnsendEmailTemplate): ValidationResult {
+  validate(template: UseSendEmailTemplate): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
 
@@ -133,7 +133,7 @@ export class HtmlValidationRule implements ValidationRule {
 }
 
 export class MetadataValidationRule implements ValidationRule {
-  validate(template: UnsendEmailTemplate): ValidationResult {
+  validate(template: UseSendEmailTemplate): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
 

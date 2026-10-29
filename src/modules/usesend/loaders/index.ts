@@ -1,6 +1,6 @@
 import { LoaderOptions, Logger } from '@medusajs/framework/types'
-import { UnsendEmailOptions, UnsendEmailTemplate } from '../types'
-import { UnsendService } from '../services'
+import { UseSendEmailOptions, UseSendEmailTemplate } from '../types'
+import { UseSendService } from '../services'
 import { readdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { toKebabCase } from '../utils'
@@ -14,15 +14,15 @@ interface TemplateMetadata {
   category?: string
 }
 
-export default async ({ container, options }: LoaderOptions<UnsendEmailOptions>): Promise<void> => {
+export default async ({ container, options }: LoaderOptions<UseSendEmailOptions>): Promise<void> => {
   if (!options) {
-    throw new Error('Missing unsend configuration')
+    throw new Error('Missing useSend configuration')
   }
 
-  const unsendService = new UnsendService(container, options)
+  const usesendService = new UseSendService(container, options)
 
   container.register({
-    unsend: asValue(unsendService),
+    usesend: asValue(usesendService),
   })
 
   const logger = container.resolve<Logger>('logger')
@@ -60,15 +60,14 @@ export default async ({ container, options }: LoaderOptions<UnsendEmailOptions>)
         }
       }
 
-      // Load the TSX/JS file. `require` keeps CommonJS semantics, which is what
+      // Load the TSX/JS file. `module.require` keeps CommonJS semantics, which is what
       // allows the consuming Medusa app to load `.tsx` templates through its
       // ts-node hook in development, and compiled `.js` templates in production.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const imported = require(filePath)
+      const imported = module.require(filePath)
       const Component = imported.default ?? imported
 
       // Create a template object
-      const template: UnsendEmailTemplate = {
+      const template: UseSendEmailTemplate = {
         subject: metadata.subject || Component.Subject || templateName,
         version: metadata.version || '1.0.0',
         metadata: {
@@ -81,7 +80,7 @@ export default async ({ container, options }: LoaderOptions<UnsendEmailOptions>)
         },
       }
 
-      unsendService.addTemplate(templateName, template)
+      usesendService.addTemplate(templateName, template)
     }
 
     logger.info(`Successfully loaded ${templateFiles.length} email templates`)

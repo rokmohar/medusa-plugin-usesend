@@ -1,5 +1,5 @@
 import { MedusaError } from '@medusajs/framework/utils'
-import { UnsendEmailTemplate } from '../types'
+import { UseSendEmailTemplate } from '../types'
 import {
   TemplateValidator,
   RequiredFieldsRule,
@@ -10,7 +10,7 @@ import {
 
 export class TemplateRepository {
   private static instance: TemplateRepository
-  private templates: Record<string, UnsendEmailTemplate> = {}
+  private templates: Record<string, UseSendEmailTemplate> = {}
   private validator: TemplateValidator
 
   private constructor() {
@@ -34,11 +34,11 @@ export class TemplateRepository {
     return !!this.templates[key]
   }
 
-  public getTemplate(key: string): UnsendEmailTemplate | undefined {
+  public getTemplate(key: string): UseSendEmailTemplate | undefined {
     return this.templates[key]
   }
 
-  public addTemplate(key: string, template: UnsendEmailTemplate): void {
+  public addTemplate(key: string, template: UseSendEmailTemplate): void {
     if (this.hasTemplate(key)) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, `Template with key "${key}" already exists`)
     }
@@ -67,17 +67,17 @@ export class TemplateRepository {
     delete this.templates[key]
   }
 
-  public setTemplates(templates: Record<string, UnsendEmailTemplate>): void {
+  public setTemplates(templates: Record<string, UseSendEmailTemplate>): void {
     this.templates = templates
   }
 
-  public addTemplates(templates: Record<string, UnsendEmailTemplate>): void {
+  public addTemplates(templates: Record<string, UseSendEmailTemplate>): void {
     Object.entries(templates).forEach(([key, template]) => {
       this.addTemplate(key, template)
     })
   }
 
-  public mergeTemplates(templates: Record<string, UnsendEmailTemplate>): void {
+  public mergeTemplates(templates: Record<string, UseSendEmailTemplate>): void {
     Object.entries(templates).forEach(([key, template]) => {
       this.templates[key] = template
     })
@@ -89,7 +89,7 @@ export class TemplateRepository {
     })
   }
 
-  public getAllTemplates(): Record<string, UnsendEmailTemplate> {
+  public getAllTemplates(): Record<string, UseSendEmailTemplate> {
     return { ...this.templates }
   }
 }

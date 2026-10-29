@@ -1,4 +1,4 @@
-import { Unsend } from 'unsend'
+import { UseSend } from 'usesend-js'
 import { render } from '@react-email/render'
 import { MedusaError } from '@medusajs/framework/utils'
 import {
@@ -6,24 +6,34 @@ import {
   ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
 } from '@medusajs/framework/types'
-import { EnvironmentConfig, UnsendEmailAttachment, UnsendEmailOptions, UnsendEmailTemplate } from '../types'
+import {
+  EnvironmentConfig,
+  RetryConfig,
+  UseSendEmailAttachment,
+  UseSendEmailOptions,
+  UseSendEmailTemplate,
+} from '../types'
 import { TemplateRepository } from '../templates/template-repository'
 import { RateLimiter } from '../utils/rate-limiter'
 import { RetryStrategy } from '../utils/retry-strategy'
 import { isRecord, readString } from '../utils/type-guards'
 
-type SendEmailPayload = Parameters<Unsend['emails']['send']>[0]
-type SendEmailError = NonNullable<Awaited<ReturnType<Unsend['emails']['send']>>['error']>
+type SendEmailPayload = Parameters<UseSend['emails']['send']>[0]
+type SendEmailError = NonNullable<Awaited<ReturnType<UseSend['emails']['send']>>['error']>
 
 const ENVIRONMENTS = ['development', 'staging', 'production'] as const satisfies readonly (keyof EnvironmentConfig)[]
 type EnvironmentName = (typeof ENVIRONMENTS)[number]
 
+const BACKOFF_STRATEGIES = ['linear', 'exponential'] as const satisfies readonly NonNullable<RetryConfig['backoff']>[]
+
+const isBackoffStrategy = (value: unknown) => BACKOFF_STRATEGIES.some((strategy) => strategy === value)
+
 const isEnvironmentName = (value: string): value is EnvironmentName => ENVIRONMENTS.some((name) => name === value)
 
-const isAttachment = (value: unknown): value is UnsendEmailAttachment =>
+const isAttachment = (value: unknown): value is UseSendEmailAttachment =>
   isRecord(value) && readString(value, 'filename') !== undefined && readString(value, 'content') !== undefined
 
-const toAttachments = (value: unknown): UnsendEmailAttachment[] =>
+const toAttachments = (value: unknown): UseSendEmailAttachment[] =>
   Array.isArray(value) ? value.filter(isAttachment) : []
 
 const formatSendError = (error: SendEmailError): string => {
@@ -44,25 +54,23 @@ const formatSendError = (error: SendEmailError): string => {
   return code ? `${message} (${code})` : message
 }
 
-export class UnsendService implements INotificationProvider {
-  private client: Unsend
-  private options: UnsendEmailOptions
+export class UseSendService implements INotificationProvider {
+  private client: UseSend
+  private options: UseSendEmailOptions
   private templateRepository: TemplateRepository
   private rateLimiter: RateLimiter
   private retryStrategy: RetryStrategy
-  private emailCount: number = 0
-  private lastResetTime: number = Date.now()
 
   constructor(_: any, options: Record<any, any>) {
     const validOptions = this.toPluginOptions(options)
-    this.client = new Unsend(validOptions.api_key, validOptions?.url)
+    this.client = new UseSend(validOptions.api_key, validOptions?.url)
     this.options = this.applyEnvironmentConfig(validOptions)
     this.templateRepository = TemplateRepository.getInstance()
     this.rateLimiter = new RateLimiter(this.options.rateLimit?.maxPerMinute)
     this.retryStrategy = new RetryStrategy({
       maxAttempts: this.options.retry?.maxAttempts ?? 3,
       delay: this.options.retry?.delay ?? 1000,
-      backoff: 'exponential',
+      backoff: this.options.retry?.backoff ?? 'exponential',
     })
   }
 
@@ -107,7 +115,7 @@ export class UnsendService implements INotificationProvider {
     return this.templateRepository.getTemplate(key)
   }
 
-  addTemplate(key: string, template: UnsendEmailTemplate) {
+  addTemplate(key: string, template: UseSendEmailTemplate) {
     this.templateRepository.addTemplate(key, template)
   }
 
@@ -115,15 +123,15 @@ export class UnsendService implements INotificationProvider {
     this.templateRepository.removeTemplate(key)
   }
 
-  setTemplates(templates: Record<string, UnsendEmailTemplate>) {
+  setTemplates(templates: Record<string, UseSendEmailTemplate>) {
     this.templateRepository.setTemplates(templates)
   }
 
-  addTemplates(templates: Record<string, UnsendEmailTemplate>) {
+  addTemplates(templates: Record<string, UseSendEmailTemplate>) {
     this.templateRepository.addTemplates(templates)
   }
 
-  mergeTemplates(templates: Record<string, UnsendEmailTemplate>) {
+  mergeTemplates(templates: Record<string, UseSendEmailTemplate>) {
     this.templateRepository.mergeTemplates(templates)
   }
 
@@ -136,10 +144,10 @@ export class UnsendService implements INotificationProvider {
 
     // Required fields validation
     if (!options.api_key) {
-      errors.push('Option `api_key` is required in the Unsend options')
+      errors.push('Option `api_key` is required in the useSend options')
     }
     if (!options.from) {
-      errors.push('Option `from` is required in the Unsend options')
+      errors.push('Option `from` is required in the useSend options')
     }
 
     // URL validation if provided
@@ -177,6 +185,9 @@ export class UnsendService implements INotificationProvider {
           errors.push('Retry delay must be an integer')
         }
       }
+      if (options.retry.backoff !== undefined && !isBackoffStrategy(options.retry.backoff)) {
+        errors.push(`Retry backoff must be one of: ${BACKOFF_STRATEGIES.join(', ')}`)
+      }
     }
 
     // Environment configuration validation
@@ -189,11 +200,11 @@ export class UnsendService implements INotificationProvider {
     }
 
     if (errors.length > 0) {
-      throw new MedusaError(MedusaError.Types.INVALID_DATA, `Invalid Unsend configuration:\n${errors.join('\n')}`)
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, `Invalid useSend configuration:\n${errors.join('\n')}`)
     }
   }
 
-  private applyEnvironmentConfig(options: UnsendEmailOptions): UnsendEmailOptions {
+  private applyEnvironmentConfig(options: UseSendEmailOptions): UseSendEmailOptions {
     const env = process.env.NODE_ENV || 'development'
     const envConfig = isEnvironmentName(env) ? options.environment?.[env] : undefined
 
@@ -209,7 +220,7 @@ export class UnsendService implements INotificationProvider {
 
   private async renderTemplate(
     name: string,
-    component: NonNullable<UnsendEmailTemplate['content']['react']>,
+    component: NonNullable<UseSendEmailTemplate['content']['react']>,
     data: ProviderSendNotificationDTO['data'],
   ): Promise<string> {
     try {
@@ -219,26 +230,6 @@ export class UnsendService implements INotificationProvider {
 
       throw new MedusaError(MedusaError.Types.INVALID_DATA, `Failed to render email template "${name}": ${message}`)
     }
-  }
-
-  private async checkRateLimit(): Promise<void> {
-    const now = Date.now()
-
-    if (now - this.lastResetTime >= 60000) {
-      this.emailCount = 0
-      this.lastResetTime = now
-    }
-
-    const maxPerMinute = this.options.rateLimit?.maxPerMinute ?? 60
-
-    if (this.emailCount >= maxPerMinute) {
-      const waitTime = 60000 - (now - this.lastResetTime)
-      await new Promise((resolve) => setTimeout(resolve, waitTime))
-      this.emailCount = 0
-      this.lastResetTime = Date.now()
-    }
-
-    this.emailCount++
   }
 
   private async sendWithRetry(emailOptions: SendEmailPayload): Promise<ProviderSendNotificationResultsDTO> {
@@ -257,14 +248,14 @@ export class UnsendService implements INotificationProvider {
     })
   }
 
-  private toPluginOptions(options: Record<any, any>): UnsendEmailOptions {
-    const isValid = (o: Record<any, any>): o is UnsendEmailOptions => {
-      UnsendService.validateOptions(o)
+  private toPluginOptions(options: Record<any, any>): UseSendEmailOptions {
+    const isValid = (o: Record<any, any>): o is UseSendEmailOptions => {
+      UseSendService.validateOptions(o)
       return true
     }
     if (isValid(options)) {
       return options
     }
-    throw new MedusaError(MedusaError.Types.INVALID_DATA, 'Invalid options for Unsend plugin')
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, 'Invalid options for the useSend plugin')
   }
 }

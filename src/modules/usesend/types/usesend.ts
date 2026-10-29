@@ -17,7 +17,7 @@ export interface RetryConfig {
    * Retry backoff strategy
    * - linear: delay increases linearly with each attempt
    * - exponential: delay doubles with each attempt
-   * @default 'linear'
+   * @default 'exponential'
    */
   backoff?: 'linear' | 'exponential'
 }
@@ -34,28 +34,28 @@ export interface EnvironmentConfig {
   /**
    * Development environment specific configuration
    */
-  development?: Partial<UnsendEmailOptions>
+  development?: Partial<UseSendEmailOptions>
 
   /**
    * Staging environment specific configuration
    */
-  staging?: Partial<UnsendEmailOptions>
+  staging?: Partial<UseSendEmailOptions>
 
   /**
    * Production environment specific configuration
    */
-  production?: Partial<UnsendEmailOptions>
+  production?: Partial<UseSendEmailOptions>
 }
 
-export interface UnsendEmailOptions {
+export interface UseSendEmailOptions {
   /**
-   * Unsend API URL
-   * @example 'https://api.unsend.com'
+   * useSend API URL
+   * @example 'https://app.usesend.com'
    */
   url?: string
 
   /**
-   * Unsend API Key
+   * useSend API key
    * @example 'sk_test_123456789'
    */
   api_key: string
@@ -111,7 +111,7 @@ export interface TemplateMetadata {
   category?: string
 }
 
-export interface UnsendEmailAttachment {
+export interface UseSendEmailAttachment {
   /**
    * Attachment filename including extension, e.g. 'invoice-PP1-R1-42.pdf'
    */
@@ -123,7 +123,7 @@ export interface UnsendEmailAttachment {
   content: string
 }
 
-export interface UnsendEmailTemplate {
+export interface UseSendEmailTemplate {
   /**
    * Email subject line
    */
