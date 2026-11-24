@@ -46,14 +46,15 @@ called Unsend. Write your emails as React components, and the plugin renders and
 
 ## Compatibility
 
-| Plugin                                 | Medusa          |
-| -------------------------------------- | --------------- |
-| `@rokmohar/medusa-plugin-usesend` 2.x  | 2.22 or newer   |
-| `@rokmohar/medusa-plugin-unsend` 1.1.x | 2.19 – 2.21     |
-| `@rokmohar/medusa-plugin-unsend` 1.0.8 | 2.4 – 2.18      |
-| `@rokmohar/medusa-plugin-unsend` 0.2.4 | 2.3.1 and older |
+| Plugin                                    | Medusa          |
+| ----------------------------------------- | --------------- |
+| `@rokmohar/medusa-plugin-usesend` 2.3.x   | 2.23 or newer   |
+| `@rokmohar/medusa-plugin-usesend` 2.0–2.2 | 2.22            |
+| `@rokmohar/medusa-plugin-unsend` 1.1.x    | 2.19 – 2.21     |
+| `@rokmohar/medusa-plugin-unsend` 1.0.8    | 2.4 – 2.18      |
+| `@rokmohar/medusa-plugin-unsend` 0.2.4    | 2.3.1 and older |
 
-Node.js 22.22 or newer is required, the same as Medusa 2.22.
+Node.js 22.22 or newer is required, the same as Medusa 2.23.
 
 ## Installation
 

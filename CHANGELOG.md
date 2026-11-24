@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-24
+
+### Changed
+
+- Requires Medusa 2.23 or newer, with React 19, `@medusajs/ui` 4.3, `@tanstack/react-query` 5.107 and `zod` 4.6 as peer
+  dependencies. The admin extension is built for Medusa 2.23's admin.
+- `@react-email/render` 2.3.
+
 ## [2.2.1] - 2026-10-29
 
 ### Fixed
@@ -88,7 +96,8 @@ Versions up to 1.1.2 were published as
 [`@rokmohar/medusa-plugin-unsend`](https://www.npmjs.com/package/@rokmohar/medusa-plugin-unsend). Their notes are in
 the [GitHub releases](https://github.com/rokmohar/medusa-plugin-usesend/releases).
 
-[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.2.1...HEAD
+[Unreleased]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/rokmohar/medusa-plugin-usesend/compare/v2.0.0...v2.1.0
